@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"ginie/structs"
@@ -12,17 +14,32 @@ import (
 	"ginie/lib"
 
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 )
+
+func init() {
+	// Load env files
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	} else {
+		fmt.Println(".env loaded")
+	}
+}
 
 func selectService(phone_number_id, from, profile_name, msg_body string) {
 	services := map[string]string{
-		"crypto": "crypto",
+		"crypto":   "crypto",
+		"football": "football",
 	}
 	msg_split := strings.Split(strings.ToLower(msg_body), " ")
 	if val, ok := services[msg_split[0]]; ok {
 		if val == "crypto" {
 			status := lib.GetCryptoPrice(phone_number_id, from, profile_name, msg_split)
 			fmt.Println(status)
+		}
+		if val == "football" {
+			lib.ScrapeFootball()
 		}
 	} else {
 		fmt.Println("Command not found")
@@ -50,9 +67,8 @@ func webhookGET(w http.ResponseWriter, r *http.Request) {
 	mode := query.Get("hub.mode")
 	token := query.Get("hub.verify_token")
 	challenge := query.Get("hub.challenge")
-	fmt.Println(mode, token, challenge)
 	if len(token) > 0 && len(mode) > 0 {
-		if mode == "subscribe" && token == "ginie" {
+		if mode == "subscribe" && token == os.Getenv("WA_TOKEN") {
 			w.WriteHeader(http.StatusOK)
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(challenge))
